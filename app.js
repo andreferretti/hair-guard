@@ -15,7 +15,7 @@ const containerEl = document.getElementById("container");
 if (isMobile) {
   startBtn.remove();
   const desc = document.getElementById("start-desc");
-  desc.textContent = "Sorry, Hair Guard is designed for desktop only. It uses your webcam to detect when your hand reaches toward your hair while you work at a desk — something that doesn't really apply on a phone or tablet. Open this page on your computer to get started.";
+  desc.textContent = "Sorry, Hair Guard is designed for desktop only. It uses your webcam to detect when your hand gets close to your hair while you work at a desk — something that doesn't really apply on a phone or tablet. Open this page on your computer to get started.";
   throw new Error("mobile");
 }
 
