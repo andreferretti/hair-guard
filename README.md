@@ -1,4 +1,4 @@
-<img src="og-image.png" alt="Hair Guard" width="100%">
+<img src="banner.png" alt="Hair Guard" width="100%">
 
 # Hair Guard
 

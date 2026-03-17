@@ -19,6 +19,40 @@ let lastPlayTime = 0;
 let triggerStartTime = 0;
 let alertAudio = null;
 
+// Web Worker timer — not throttled in background tabs
+const timerWorker = new Worker(
+  URL.createObjectURL(new Blob([`
+    let id = null;
+    onmessage = (e) => {
+      if (e.data === "start") {
+        if (id) clearInterval(id);
+        id = setInterval(() => postMessage("tick"), 200);
+      } else if (e.data === "stop") {
+        if (id) { clearInterval(id); id = null; }
+      }
+    };
+  `], { type: "application/javascript" }))
+);
+
+timerWorker.onmessage = () => {
+  if (running && document.hidden) detect();
+};
+
+function scheduleNextDetect() {
+  if (!running) return;
+  if (!document.hidden) {
+    requestAnimationFrame(detect);
+  }
+  // When hidden, the worker interval drives detect()
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (!running) return;
+  if (!document.hidden) {
+    requestAnimationFrame(detect);
+  }
+});
+
 async function init() {
   statusEl.textContent = "Loading pose model…";
   const vision = await FilesetResolver.forVisionTasks(
@@ -48,17 +82,22 @@ function dist(a, b) {
 function detect() {
   if (!running) return;
 
-  // Match canvas to the video's actual displayed size
-  const rect = video.getBoundingClientRect();
-  canvas.width = rect.width;
-  canvas.height = rect.height;
-  canvas.style.width = rect.width + "px";
-  canvas.style.height = rect.height + "px";
-  canvas.style.left = (rect.left - video.parentElement.getBoundingClientRect().left) + "px";
-  canvas.style.top = (rect.top - video.parentElement.getBoundingClientRect().top) + "px";
+  const hidden = document.hidden;
+
+  if (!hidden) {
+    // Match canvas to the video's actual displayed size
+    const rect = video.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    canvas.style.width = rect.width + "px";
+    canvas.style.height = rect.height + "px";
+    canvas.style.left = (rect.left - video.parentElement.getBoundingClientRect().left) + "px";
+    canvas.style.top = (rect.top - video.parentElement.getBoundingClientRect().top) + "px";
+  }
 
   const results = poseLandmarker.detectForVideo(video, performance.now());
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (!hidden) ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   if (results.landmarks && results.landmarks.length > 0) {
     const lm = results.landmarks[0];
@@ -73,12 +112,14 @@ function detect() {
     const leftWrist = lm[15];
     const rightWrist = lm[16];
 
-    // Draw temple dots (red)
-    for (const p of [leftTemple, rightTemple]) {
-      ctx.beginPath();
-      ctx.arc(p.x * w, p.y * h, 5, 0, Math.PI * 2);
-      ctx.fillStyle = "red";
-      ctx.fill();
+    if (!hidden) {
+      // Draw temple dots (red)
+      for (const p of [leftTemple, rightTemple]) {
+        ctx.beginPath();
+        ctx.arc(p.x * w, p.y * h, 5, 0, Math.PI * 2);
+        ctx.fillStyle = "red";
+        ctx.fill();
+      }
     }
 
     // Distance checks
@@ -115,40 +156,42 @@ function detect() {
       triggerStartTime = 0;
     }
 
-    // Draw lines (red only when alerting)
-    const leftAlarm = alerting && dLeft < DISTANCE_THRESHOLD;
-    const rightAlarm = alerting && dRight < DISTANCE_THRESHOLD;
+    if (!hidden) {
+      // Draw lines (red only when alerting)
+      const leftAlarm = alerting && dLeft < DISTANCE_THRESHOLD;
+      const rightAlarm = alerting && dRight < DISTANCE_THRESHOLD;
 
-    ctx.beginPath();
-    ctx.moveTo(leftWrist.x * w, leftWrist.y * h);
-    ctx.lineTo(leftClosest.x * w, leftClosest.y * h);
-    ctx.strokeStyle = leftAlarm ? "red" : "blue";
-    ctx.lineWidth = 2;
-    ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(leftWrist.x * w, leftWrist.y * h);
+      ctx.lineTo(leftClosest.x * w, leftClosest.y * h);
+      ctx.strokeStyle = leftAlarm ? "red" : "blue";
+      ctx.lineWidth = 2;
+      ctx.stroke();
 
-    ctx.beginPath();
-    ctx.moveTo(rightWrist.x * w, rightWrist.y * h);
-    ctx.lineTo(rightClosest.x * w, rightClosest.y * h);
-    ctx.strokeStyle = rightAlarm ? "red" : "blue";
-    ctx.lineWidth = 2;
-    ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(rightWrist.x * w, rightWrist.y * h);
+      ctx.lineTo(rightClosest.x * w, rightClosest.y * h);
+      ctx.strokeStyle = rightAlarm ? "red" : "blue";
+      ctx.lineWidth = 2;
+      ctx.stroke();
 
-    // Draw wrist dots (red only when alerting)
-    ctx.beginPath();
-    ctx.arc(leftWrist.x * w, leftWrist.y * h, 5, 0, Math.PI * 2);
-    ctx.fillStyle = leftAlarm ? "red" : "cyan";
-    ctx.fill();
+      // Draw wrist dots (red only when alerting)
+      ctx.beginPath();
+      ctx.arc(leftWrist.x * w, leftWrist.y * h, 5, 0, Math.PI * 2);
+      ctx.fillStyle = leftAlarm ? "red" : "cyan";
+      ctx.fill();
 
-    ctx.beginPath();
-    ctx.arc(rightWrist.x * w, rightWrist.y * h, 5, 0, Math.PI * 2);
-    ctx.fillStyle = rightAlarm ? "red" : "cyan";
-    ctx.fill();
+      ctx.beginPath();
+      ctx.arc(rightWrist.x * w, rightWrist.y * h, 5, 0, Math.PI * 2);
+      ctx.fillStyle = rightAlarm ? "red" : "cyan";
+      ctx.fill();
+    }
   } else {
     warningEl.classList.add("hidden");
     triggerStartTime = 0;
   }
 
-  requestAnimationFrame(detect);
+  scheduleNextDetect();
 }
 
 async function startCamera() {
@@ -168,8 +211,9 @@ async function startCamera() {
   }
 
   running = true;
+  timerWorker.postMessage("start");
   statusEl.textContent = "You'll hear a sound whenever your hand gets near your hair.";
-  detect();
+  scheduleNextDetect();
 }
 
 async function launch() {
