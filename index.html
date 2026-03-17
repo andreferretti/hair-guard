@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>No Hair Twist!</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>No Hair Twist!</h1>
+  <div id="container">
+    <video id="webcam" autoplay playsinline></video>
+    <canvas id="overlay"></canvas>
+    <div id="warning" class="hidden">
+      <span class="triangle">⚠</span>
+      !! STOP TOUCHING !!
+      <span class="triangle">⚠</span>
+    </div>
+  </div>
+  <p id="status">Loading…</p>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
