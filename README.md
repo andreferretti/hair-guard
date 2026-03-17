@@ -1,3 +1,5 @@
+<img src="og-image.png" alt="Hair Guard" width="100%">
+
 # Hair Guard
 
 A browser-based tool that uses your webcam and [MediaPipe Pose Landmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker) to detect when your hand gets near your head — and plays an alert sound to help you stop touching your hair.
