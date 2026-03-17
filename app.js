@@ -1,5 +1,8 @@
 import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/vision_bundle.mjs";
 
+const isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+  || (navigator.maxTouchPoints > 1 && !window.matchMedia("(pointer: fine)").matches);
+
 const video = document.getElementById("webcam");
 const canvas = document.getElementById("overlay");
 const ctx = canvas.getContext("2d");
@@ -8,6 +11,13 @@ const statusEl = document.getElementById("status");
 const startScreen = document.getElementById("start-screen");
 const startBtn = document.getElementById("start-btn");
 const containerEl = document.getElementById("container");
+
+if (isMobile) {
+  startBtn.remove();
+  const desc = document.getElementById("start-desc");
+  desc.textContent = "Hair Guard is designed for desktop only. It watches your posture through your webcam while you work at a desk — something that doesn't really apply on a phone or tablet. Open this page on your computer to get started.";
+  throw new Error("mobile");
+}
 
 const COOLDOWN_SECONDS = 3;
 const WAIT_BEFORE_BEEP_SECONDS = 0.69;
