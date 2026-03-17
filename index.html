@@ -3,13 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>No Hair Twist!</title>
-  <link rel="icon" href="data:,">
+  <title>Hair Guard</title>
+  <meta property="og:title" content="Hair Guard">
+  <meta property="og:description" content="Uses your camera to spot when your hand sneaks toward your hair — and nudges you to stop. Runs locally, nothing leaves your device.">
+  <meta property="og:image" content="https://hair-guard.vercel.app/og-image.png">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Hair Guard">
+  <meta name="twitter:description" content="Uses your camera to spot when your hand sneaks toward your hair — and nudges you to stop.">
+  <meta name="twitter:image" content="https://hair-guard.vercel.app/og-image.png">
+  <link rel="icon" type="image/png" href="favicon.png">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>No Hair Twist!</h1>
-  <div id="container">
+  <div id="header"><h1>Hair Guard</h1></div>
+  <div id="start-screen">
+    <button id="start-btn">Start</button>
+    <p id="start-desc">This uses your camera to spot when your hand sneaks up toward your hair — and gives you a nudge to stop. Everything runs locally, nothing leaves your device.</p>
+  </div>
+  <div id="container" class="hidden">
     <video id="webcam" autoplay playsinline></video>
     <canvas id="overlay"></canvas>
     <div id="warning" class="hidden">
@@ -18,7 +30,7 @@
       <span class="triangle">⚠</span>
     </div>
   </div>
-  <p id="status">Loading…</p>
+  <div id="footer"><p id="status" class="hidden"></p></div>
   <script type="module" src="app.js"></script>
 </body>
 </html>

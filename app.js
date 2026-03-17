@@ -5,6 +5,9 @@ const canvas = document.getElementById("overlay");
 const ctx = canvas.getContext("2d");
 const warningEl = document.getElementById("warning");
 const statusEl = document.getElementById("status");
+const startScreen = document.getElementById("start-screen");
+const startBtn = document.getElementById("start-btn");
+const containerEl = document.getElementById("container");
 
 const COOLDOWN_SECONDS = 3;
 const WAIT_BEFORE_BEEP_SECONDS = 0.69;
@@ -84,58 +87,62 @@ function detect() {
     const dLeft = Math.min(dLWLT, dLWRT);
     const leftClosest = dLWLT <= dLWRT ? leftTemple : rightTemple;
 
-    ctx.beginPath();
-    ctx.moveTo(leftWrist.x * w, leftWrist.y * h);
-    ctx.lineTo(leftClosest.x * w, leftClosest.y * h);
-    ctx.strokeStyle = dLeft < DISTANCE_THRESHOLD ? "red" : "blue";
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
     const dRWLT = dist(rightWrist, leftTemple);
     const dRWRT = dist(rightWrist, rightTemple);
     const dRight = Math.min(dRWLT, dRWRT);
     const rightClosest = dRWLT <= dRWRT ? leftTemple : rightTemple;
 
-    ctx.beginPath();
-    ctx.moveTo(rightWrist.x * w, rightWrist.y * h);
-    ctx.lineTo(rightClosest.x * w, rightClosest.y * h);
-    ctx.strokeStyle = dRight < DISTANCE_THRESHOLD ? "red" : "blue";
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    // Draw wrist dots (red when too close)
-    ctx.beginPath();
-    ctx.arc(leftWrist.x * w, leftWrist.y * h, 5, 0, Math.PI * 2);
-    ctx.fillStyle = dLeft < DISTANCE_THRESHOLD ? "red" : "cyan";
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.arc(rightWrist.x * w, rightWrist.y * h, 5, 0, Math.PI * 2);
-    ctx.fillStyle = dRight < DISTANCE_THRESHOLD ? "red" : "cyan";
-    ctx.fill();
-
     const trigger = dLeft < DISTANCE_THRESHOLD || dRight < DISTANCE_THRESHOLD;
     const now = performance.now() / 1000;
 
+    // Determine if we've been triggered long enough to alert
+    let alerting = false;
     if (trigger) {
-      warningEl.classList.remove("hidden");
       if (triggerStartTime === 0) {
         triggerStartTime = now;
       } else if (now - triggerStartTime >= WAIT_BEFORE_BEEP_SECONDS) {
+        alerting = true;
         if (now - lastPlayTime > COOLDOWN_SECONDS) {
           alertAudio.currentTime = 0;
           alertAudio.play();
-          if (Notification.permission === "granted") {
-            new Notification("Stop touching your hair!", { body: "You can do it." });
-          }
           lastPlayTime = now;
           triggerStartTime = 0;
         }
       }
+      warningEl.classList.remove("hidden");
     } else {
       warningEl.classList.add("hidden");
       triggerStartTime = 0;
     }
+
+    // Draw lines (red only when alerting)
+    const leftAlarm = alerting && dLeft < DISTANCE_THRESHOLD;
+    const rightAlarm = alerting && dRight < DISTANCE_THRESHOLD;
+
+    ctx.beginPath();
+    ctx.moveTo(leftWrist.x * w, leftWrist.y * h);
+    ctx.lineTo(leftClosest.x * w, leftClosest.y * h);
+    ctx.strokeStyle = leftAlarm ? "red" : "blue";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(rightWrist.x * w, rightWrist.y * h);
+    ctx.lineTo(rightClosest.x * w, rightClosest.y * h);
+    ctx.strokeStyle = rightAlarm ? "red" : "blue";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Draw wrist dots (red only when alerting)
+    ctx.beginPath();
+    ctx.arc(leftWrist.x * w, leftWrist.y * h, 5, 0, Math.PI * 2);
+    ctx.fillStyle = leftAlarm ? "red" : "cyan";
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(rightWrist.x * w, rightWrist.y * h, 5, 0, Math.PI * 2);
+    ctx.fillStyle = rightAlarm ? "red" : "cyan";
+    ctx.fill();
   } else {
     warningEl.classList.add("hidden");
     triggerStartTime = 0;
@@ -145,12 +152,19 @@ function detect() {
 }
 
 async function startCamera() {
-  const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-  video.srcObject = stream;
-  await video.play();
-
-  if (Notification.permission === "default") {
-    Notification.requestPermission();
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    video.srcObject = stream;
+    await video.play();
+  } catch (err) {
+    startScreen.classList.remove("hidden");
+    containerEl.classList.add("hidden");
+    statusEl.classList.add("hidden");
+    const desc = document.getElementById("start-desc");
+    desc.style.color = "#e55";
+    desc.textContent = "Camera access is required for this tool to work. Please allow camera access in your browser settings and reload the page.";
+    startBtn.remove();
+    return;
   }
 
   running = true;
@@ -158,4 +172,24 @@ async function startCamera() {
   detect();
 }
 
-init();
+async function launch() {
+  startScreen.classList.add("hidden");
+  containerEl.classList.remove("hidden");
+  statusEl.classList.remove("hidden");
+  await init();
+}
+
+startBtn.addEventListener("click", async () => {
+  startBtn.disabled = true;
+  await launch();
+});
+
+// Auto-start if camera permission was already granted
+try {
+  const perm = await navigator.permissions.query({ name: "camera" });
+  if (perm.state === "granted") {
+    launch();
+  }
+} catch (e) {
+  // Permissions API not supported — show start button as fallback
+}
